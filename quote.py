@@ -37,7 +37,7 @@ def quote(bot, trigger):
 			output = 'invalid number of arguments'
 		else:
 			subcommand = command_parts[0]
-			data = command_parts[1]
+			data = command_parts[1].encode('utf-8')
 			
 			# perform subcommand
 			if subcommand == 'add':
