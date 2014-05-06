@@ -7,3 +7,5 @@ in your default.cfg file, put the following at the bottom:
 
 [quote]  
 filename = /path/to/whatever/file/you/want/to/use.txt
+
+also, add 'quote' (without quotes) to the list of modules listed in 'enable' under '[core]'
