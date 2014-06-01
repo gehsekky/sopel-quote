@@ -19,8 +19,10 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 """
 
+from __future__ import unicode_literals
 import willie
 import random
+import codecs # TODO in python3, codecs.open isn't needed since the default open does encoding.
 
 @willie.module.commands('quote')
 def quote(bot, trigger):
@@ -37,7 +39,7 @@ def quote(bot, trigger):
 			output = 'invalid number of arguments'
 		else:
 			subcommand = command_parts[0]
-			data = command_parts[1].encode('utf-8')
+			data = command_parts[1]
 			
 			# perform subcommand
 			if subcommand == 'add':
@@ -62,23 +64,22 @@ def is_valid_int(num):
         
 def get_random_quote(filename):
     msg = ''
-    try:
-        # open file and read all lines
-        with open(filename, 'r') as quotefile:
-            num_lines = sum(1 for line in quotefile)
-            if num_lines == 0:
-                msg = 'empty file.'
-            else:
-                rand = random.randint(0, num_lines - 1)
-                counter = 0
-                quotefile.seek(0)
-                line = quotefile.readline()
-                while counter < rand:
-                    line = quotefile.readline().strip()
-                    counter += 1
-                msg = '[%d] %s' % (rand, line)
-    except Exception as ex:
-        msg = 'error: %s' % ex
+
+    # open file and read all lines
+    with codecs.open(filename, 'r', encoding='utf-8') as quotefile:
+        num_lines = sum(1 for line in quotefile)
+        if num_lines == 0:
+            msg = 'empty file.'
+        else:
+            rand = random.randint(0, num_lines - 1)
+            counter = 0
+            quotefile.seek(0)
+            line = quotefile.readline()
+            while counter < rand:
+                line = quotefile.readline().strip()
+                counter += 1
+            msg = '[%d] %s' % (rand, line)
+
     return msg
     
 def add_quote(filename, line_to_add):
@@ -88,13 +89,10 @@ def add_quote(filename, line_to_add):
     line_to_add.replace('\n', '')
     line_to_add = line_to_add + '\n'
 
-    try:
-        # write quote to file
-        with open(filename, 'a') as quotefile:
-            quotefile.write(line_to_add)
-        msg = 'quote added.'
-    except Exception as ex:
-        msg = 'error: %s' % ex
+    # write quote to file
+    with codecs.open(filename, 'a', encoding='utf-8') as quotefile:
+        quotefile.write(line_to_add)
+    msg = 'quote added.'
 
     return msg
 
@@ -102,33 +100,33 @@ def delete_quote(filename, data):
     msg = ''
 
     # check if argument is valid int
-    if is_valid_int(data):
-        line_num = int(data)
-        
-        # check if argument is negative
-        if line_num > -1:
-            try:
-                lines = None
-                # get all quotes
-                with open(filename, 'r') as quotefile:
-                    lines = quotefile.readlines()
-                # check if input is within bounds
-                if line_num < len(lines):
-                    # remove quote from list
-                    lines.pop(line_num)
-                    # replace file contents with updated list
-                    with open(filename, 'w') as quotefile:
-                        for line in lines:
-                            quotefile.write(line)
-                    msg = 'deleted line #%s.' % (line_num)
-                else:
-                    msg = 'command argument exceeds number of lines in file'
-            except Exception as ex:
-                msg = 'error: %s' % ex
-        else:
-            msg = 'command argument must be non-negative'
+    if not is_valid_int(data):
+    	msg = 'command argument must be valid integer'
+    	return msg
+
+    line_num = int(data)
+    
+    # check if argument is negative
+    if line_num < 0:
+    	msg = 'command argument must be non-negative'
+    	return msg
+
+	# get all quotes
+    lines = None
+    with codecs.open(filename, 'r', encoding='utf-8') as quotefile:
+        lines = quotefile.readlines()
+
+    # check if input is within bounds
+    if line_num < len(lines):
+        # remove quote from list
+        lines.pop(line_num)
+        # replace file contents with updated list
+        with codecs.open(filename, 'w', encoding='utf-8') as quotefile:
+            for line in lines:
+                quotefile.write(line)
+        msg = 'deleted line #%s.' % (line_num)
     else:
-        msg = 'command argument must be valid integer'
+        msg = 'command argument exceeds number of lines in file'        
 
     return msg
 
@@ -136,48 +134,47 @@ def show_quote(filename, data):
     msg = ''
 
     # check if argument is valid int
-    if is_valid_int(data):
-        line_num = int(data)
+    if not is_valid_int(data):
+    	msg = 'command argument must be valid integer'
+    	return msg
+    	
+    line_num = int(data)
 
-        # check if input is negative
-        if line_num > -1:
-            lines = None
-            try:
-                # get all quotes
-                with open(filename, 'r') as quotefile:
-                    lines = quotefile.readlines()
-            except Exception as ex:
-                msg = 'error: %s' % ex
-            # check if input is within bounds
-            if line_num < len(lines):
-                # send desired quote as message
-                msg = '[' + str(line_num) + '] ' + lines[line_num]
-            else:
-                msg = 'command argument exceeds number of lines in file'
-        else:
-            msg = 'command argument must be non-negative'
+    # check if input is negative
+    if line_num < 0:
+    	msg = 'command argument must be non-negative'
+    	return msg 	
+    
+    # get all quotes
+    lines = None
+    with codecs.open(filename, 'r', encoding='utf-8') as quotefile:
+        lines = quotefile.readlines()
+
+    # check if input is within bounds
+    # TODO make this a runtime property (count) so we don't have to constantly check file
+    if line_num < len(lines):
+        # send desired quote as message
+        msg = '[' + str(line_num) + '] ' + lines[line_num]
     else:
-        msg = 'command argument must be valid integer'
+        msg = 'command argument exceeds number of lines in file'
+
     return msg
 
 def search_quote(filename, data):
     msg = ''
-    
-    try:
-        # get all quotes
-        lines = None
-        with open(filename, 'r') as quotefile:
-            lines = quotefile.readlines()
-    
-        # filter quotes
-        # TODO use regex match to allow wildcard
-        results = ['[%d] %s' % (lines.index(line), line) for line in lines if data.lower() in line.lower() > -1]
-        if len(results) > 0:
-			rand = random.randint(0, len(results) - 1)
-			msg = results[rand]
-        else:
-            msg = "no matches found for search phrase: %s" % (data)
-    except Exception as ex:
-        msg = 'error: %s' % ex
+
+    # get all quotes
+    lines = None
+    with open(filename, 'r') as quotefile:
+        lines = quotefile.readlines()
+
+    # filter quotes
+    # TODO use regex match to allow wildcard
+    results = ['[%d] %s' % (lines.index(line), line) for line in lines if data.lower() in line.lower() > -1]
+    if len(results) > 0:
+		rand = random.randint(0, len(results) - 1)
+		msg = results[rand]
+    else:
+        msg = "no matches found for search phrase: %s" % (data)
 
     return msg
