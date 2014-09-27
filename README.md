@@ -10,7 +10,7 @@ filename = /path/to/whatever/file/you/want/to/use.txt
 
 if you want to use sqlite, in your default.cfg file, put the following at the bottom:
 
-[quote]
+[quote]  
 datasource = sqlite
 
 also, add 'quote' (without quotes) to the list of modules listed in 'enable' under '[core]'
