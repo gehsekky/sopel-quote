@@ -92,7 +92,7 @@ def add_quote(filename, line_to_add):
     # write quote to file
     with codecs.open(filename, 'a', encoding='utf-8') as quotefile:
         quotefile.write(line_to_add)
-    msg = 'quote added: %s.'%(line_to_add)
+    msg = 'quote added: %s.' % (line_to_add)
 
     return msg
 
