@@ -226,7 +226,7 @@ class SqliteQuoteDataProvider(QuoteDataProvider):
 		QuoteDataProvider.__init__(self, options)
 
 		# check if tables exist and create as necessary
-		self.conn = sqlite3.connect(self.options.filename)
+		self.conn = sqlite3.connect(options.filename)
 		self.dbcursor = self.conn.cursor()
 		self.dbcursor.execute('''
 			create table if not exists quotes (id integer primary key, quote text not null)
@@ -247,14 +247,12 @@ class SqliteQuoteDataProvider(QuoteDataProvider):
 
 	def search(self, data):
 		self.dbcursor.execute('''
-			select * from quotes where quote like ?
+			select * from quotes where quote like ? order by random() limit 1
 		''', ('%' + data + '%',))
-		quotes = self.dbcursor.fetchall()
-		if len(quotes) == 0:
+		quote = self.dbcursor.fetchone()
+		if quote is None:
 			msg = 'there are no quotes in the database that match pattern = %s.' % data
 		else:
-			rand = random.randint(0, len(quotes) - 1)
-			quote = quotes[rand]
 			msg = '[%d] %s' % (quote[0], quote[1])
 		self.conn.close()
 		return msg
