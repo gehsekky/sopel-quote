@@ -20,46 +20,63 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 """
 
 from __future__ import unicode_literals
+from willie.module import rate
 import willie
 import random
 import codecs # TODO in python3, codecs.open isn't needed since the default open does encoding.
 import sqlite3
 
 @willie.module.commands('quote')
+@rate(5)
 def quote(bot, trigger):
 	options = QuoteModuleOptions()
+	options.channel = trigger.sender
 	dataprovider = None
 
 	# check for quote object in config object
-	if not hasattr(bot.config, 'quote'):
-		raise KeyError('Could not find quote settings in config object. Have you defined the [quote] section in the config file?')
+	if hasattr(bot.config, 'quote'):
+		# check for datasource setting. default to 'sqlite'.
+		if not bot.config.quote.datasource:
+			options.datasource = 'sqlite'
+		else:
+			options.datasource = bot.config.quote.datasource
 
-	# check for datasource setting. default to 'file'.
-	if not bot.config.quote.datasource:
-		#raise KeyError('Could not find datasource setting in quote config object. Have you defined the setting under the [quote] section in the config file?')
-		options.datasource = 'file'
-	else:
-		options.datasource = bot.config.quote.datasource
-
-	# if datasource is file, we have to have filename specified
-	if options.datasource == 'file':
+		# check for filename setting. default to 'quotes'.
 		if not bot.config.quote.filename:
-			raise KeyError('Could not find filename setting in quote config object. Have you defined the setting under the [quote] section in the config file?')
+			options.filename = 'quotes'
+		else:
+			options.filename = bot.config.quote.filename
+
+		# check for onefile setting to keep all channels' quotes in one file/db. default to False.
+		if not bot.config.quote.onefile:
+			options.onefile = False
+		else:
+			options.onefile = bot.config.quote.onefile
+	else:
+		# set defaults if no quote block detected
+		options.datasource = 'sqlite'
+		options.filename = 'quotes'
+		options.onefile = False
+
+	# check if we are separating channels into their own files
+	if not options.onefile:
+		options.filename = '%s_%s' % (options.filename, options.channel.replace('#', ''))
 
 	# get data provider initialized
 	if options.datasource == 'file':
-		options.filename = bot.config.quote.filename
+		options.filename += '.txt'
 		dataprovider = TextFileQuoteDataProvider(options)
 	elif options.datasource == 'sqlite':
-		options.filename = 'quotes.db'
+		options.filename += '.db'
 		dataprovider = SqliteQuoteDataProvider(options)
 	else:
-		raise Exception('Unknown datasource: ' + options.datasource)
+		raise Exception('Unknown datasource set in config: %s' % (options.datasource))
 
+	# parse and execute command
 	raw_args = trigger.group(2)
 	output = ''
 	if raw_args is None or raw_args == '':
-		# display random quote
+		# display random quote as default action
 		output = dataprovider.get_random()
 	else:
 		# get subcommand
@@ -75,16 +92,16 @@ def quote(bot, trigger):
 				output = dataprovider.add(data)
 			elif subcommand == 'delete' or subcommand == 'remove':
 				output = validate_number_input(data)
-				if output == '':
-					output = dataprovider.remove(data)
+				output = dataprovider.remove(int(data)) if output == '' else output
 			elif subcommand == 'show':
 				output = validate_number_input(data)
-				if output == '':
-					output = dataprovider.get_by_id(data)
-			elif subcommand == 'search':
+				output = dataprovider.get_by_id(int(data)) if output == '' else output
+			elif subcommand == 'search' or subcommand == 'find':
 				output = dataprovider.search(data)
 			else:
-				output = 'invalid subcommand'
+				output = 'invalid subcommand: %s' % (subcommand)
+
+	# output results
 	bot.say(output)
 
 def is_valid_int(num):
@@ -96,26 +113,25 @@ def is_valid_int(num):
 		return False
 
 def validate_number_input(data):
-	msg = ''
-
+	"""Checks if input is both valid int and non-negative"""
 	# check if argument is valid int
 	if not is_valid_int(data):
-		msg = 'command argument must be valid integer'
+		msg = 'command argument must be valid integer: %s' % (data)
 		return msg
-		
-	line_num = int(data)
 
 	# check if input is negative
-	if line_num < 0:
-		msg = 'command argument must be non-negative'
+	valid_int = int(data)
+	if valid_int < 0:
+		msg = 'command argument must be non-negative: %d' % (valid_int)
 		return msg
-	
-	return msg
+
+	return ''
 
 class QuoteModuleOptions:
 	def __init__(self):
 		self.datasource = None
 		self.filename = None
+		self.onefile = False
 
 class QuoteDataProvider(object):
 	def __init__(self, options):
@@ -139,6 +155,10 @@ class QuoteDataProvider(object):
 class TextFileQuoteDataProvider(QuoteDataProvider):
 	def __init__(self, options):
 		QuoteDataProvider.__init__(self, options)
+
+		# check if file exists and create as necessary
+		with codecs.open(self.options.filename, 'a+', encoding='utf-8') as quotefile:
+			pass
 
 	def get_random(self):
 		# open file and read all lines
@@ -192,7 +212,6 @@ class TextFileQuoteDataProvider(QuoteDataProvider):
 			lines = quotefile.readlines()
 
 		# check if input is within bounds
-		quote_id = int(quote_id)
 		if quote_id < len(lines):
 			# remove quote from list
 			lines.pop(quote_id)
@@ -200,7 +219,7 @@ class TextFileQuoteDataProvider(QuoteDataProvider):
 			with codecs.open(self.options.filename, 'w', encoding='utf-8') as quotefile:
 				for line in lines:
 					quotefile.write(line)
-			msg = 'deleted quote #%s.' % (quote_id)
+			msg = 'deleted quote #%d.' % (quote_id)
 		else:
 			msg = 'command argument exceeds number of lines in file'
 		return msg
@@ -213,7 +232,6 @@ class TextFileQuoteDataProvider(QuoteDataProvider):
 
 		# check if input is within bounds
 		# TODO make this a runtime property (count) so we don't have to constantly check file
-		quote_id = int(quote_id)
 		if quote_id < len(lines):
 			# send desired quote as message
 			msg = '[%d] %s' % (quote_id, lines[quote_id])
@@ -251,7 +269,7 @@ class SqliteQuoteDataProvider(QuoteDataProvider):
 		''', ('%' + data + '%',))
 		quote = self.dbcursor.fetchone()
 		if quote is None:
-			msg = 'there are no quotes in the database that match pattern = %s.' % data
+			msg = 'there are no quotes in the database that match pattern = %s.' % (data)
 		else:
 			msg = '[%d] %s' % (quote[0], quote[1])
 		self.conn.close()
@@ -274,7 +292,7 @@ class SqliteQuoteDataProvider(QuoteDataProvider):
 		self.conn.commit()
 		self.conn.close()
 
-		msg = 'deleted quote #%s.' % (quote_id)
+		msg = 'deleted quote #%d.' % (quote_id)
 		return msg
 
 	def get_by_id(self, quote_id):
@@ -283,7 +301,7 @@ class SqliteQuoteDataProvider(QuoteDataProvider):
 		''', (quote_id,))
 		quote = self.dbcursor.fetchone()
 		if quote is None:
-			msg = 'there was no quote in the database with id = %s.' % quote_id
+			msg = 'there was no quote in the database with id = %d.' % (quote_id)
 		else:
 			msg = '[%d] %s' % (quote[0], quote[1])
 		self.conn.close()
