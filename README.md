@@ -6,8 +6,7 @@ A quote module for willie, an irc bot written in python. Currently supports text
 UPDATE: I've made significant changes to where effort has to be put in to keep things working if upgrading the script.
 
 
-###getting started
-******************
+####getting started
 
 If you want to use a text file, put the following at the bottom of your default.cfg file:
 
