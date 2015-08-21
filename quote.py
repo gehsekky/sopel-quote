@@ -1,32 +1,17 @@
 """
-quote.py - A simple quotes module for willie
-Copyright (C) 2014  Andy Chung - iamchung.com
-
-iamchung.com
-
-This program is free software; you can redistribute it and/or
-modify it under the terms of the GNU General Public License
-as published by the Free Software Foundation; either version 2
-of the License, or (at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+quote.py - A simple quotes module for sopel
+Copyright 2015, Andy Chung, iamchung.com
+Licensed under the Eiffel Forum License 2.
 """
 
 from __future__ import unicode_literals
-from willie.module import rate
-import willie
+from sopel.module import rate
+import sopel
 import random
 import codecs # TODO in python3, codecs.open isn't needed since the default open does encoding.
 import sqlite3
 
-@willie.module.commands('quote')
+@sopel.module.commands('quote')
 @rate(5)
 def quote(bot, trigger):
 	options = QuoteModuleOptions()
