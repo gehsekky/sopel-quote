@@ -170,7 +170,7 @@ class TextFileQuoteDataProvider(QuoteDataProvider):
 
 		# filter quotes
 		# TODO use regex match to allow wildcard
-		results = ['[%d] %s' % (lines.index(line), line) for line in lines if data.lower() in line.lower() > -1]
+		results = ['[%d] %s' % (lines.index(line), line) for line in lines if data.lower() in line.lower()]
 		if len(results) > 0:
 			rand = random.randint(0, len(results) - 1)
 			msg = results[rand]
